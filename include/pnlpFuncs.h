@@ -21,8 +21,6 @@ public:
 
   bool load(const rapidjson::Document &doc);
 
-  bool build();
-
   inline int getNumFuncs() const { return _numFuncs; };
 
   inline string getFuncName(int idx) const { return _funcNames[idx]; };
@@ -54,7 +52,6 @@ private:
   bool _idxToCol; // TODO see if there's a better way
 
   int _numFuncs;
-  string _funcPrefix;
 
   int _outSize;
 

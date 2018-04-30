@@ -9,9 +9,13 @@ int main()
 {
   printf("\nPNLP - Parallel Nonlinear Programming\n\n");
 
-  PnlpProblem *pProb = new PnlpProblem("nlp051");
+  PnlpProblem *pProb;
 
-  if (!pProb->load()) return 1;
+  pProb = new PnlpProblem("nlp051");
+  //pProb = new PnlpProblem("atlas");
+
+  if (!pProb->load())
+    return 1;
 
   pProb->build();
 

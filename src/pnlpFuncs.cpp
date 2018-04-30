@@ -24,7 +24,6 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "FuncIndices");
       _idxToCol = false;
-      _funcPrefix = "";
       _outSize = 1;
       break;
     }
@@ -35,7 +34,6 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "nzJacIndices");
       _idxToCol = true;
-      _funcPrefix = "J_";
       _outSize = doc["Variable"]["dimVars"].GetInt();
       break;
     }
@@ -46,7 +44,6 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "FuncIndices");
       _idxToCol = false;
-      _funcPrefix = "";
       _outSize = doc["Constraint"]["Dimension"].GetInt();
       break;
     }
@@ -57,7 +54,6 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "nzJacIndices");
       _idxToCol = false;
-      _funcPrefix = "J_";
       _outSize = doc["Constraint"]["nnzJac"].GetInt();
       break;
     }
@@ -99,7 +95,8 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
       funcOutDeps.resize (funcId+1);
 
       // Get function names
-      funcNames[funcId] = _funcPrefix + docH1["Names"][f].GetString();
+      //funcNames[funcId] = _funcPrefix + docH1["Names"][f].GetString();
+      funcNames[funcId] = doc["Function"]["name"][funcId].GetString();
     }
 
     // Get function input dependencies, ie, which input variables are needed for
@@ -119,13 +116,16 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
     // Get function output dependencies, ie, which output variables depend on
     // the result of this function
     depVec.clear();
-    for (int i = 0; i < docH1[_docH2OutDepName][f].Size(); i++)
-      if (_idxToCol)
-        depVec.push_back(
-          docH1["nzJacCols"][ docH1[_docH2OutDepName][f][i].GetInt()-1 ].GetInt()-1
-        );
-      else
-        depVec.push_back(docH1[_docH2OutDepName][f][i].GetInt()-1);
+    if (!docH1[_docH2OutDepName][f].IsArray())
+      depVec.push_back(0);
+    else
+      for (int i = 0; i < docH1[_docH2OutDepName][f].Size(); i++)
+        if (_idxToCol)
+          depVec.push_back(
+            docH1["nzJacCols"][ docH1[_docH2OutDepName][f][i].GetInt()-1 ].GetInt()-1
+          );
+        else
+          depVec.push_back(docH1[_docH2OutDepName][f][i].GetInt()-1);
     funcOutDeps[funcId].push_back(depVec);
 
     // Display function information
@@ -178,44 +178,7 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
     }
   }
 
-  // Now delete unused vector entries
-  //int i = 0;
-  //while (i < _funcNames.size())
-  //  if (_funcNames[i] == "") {
-  //    _funcNames.erase(_funcNames.begin()+i);
-  //    _funcInDeps.erase(_funcInDeps.begin()+i);
-  //    _funcInAuxs.erase(_funcInAuxs.begin()+i);
-  //    _funcOutDeps.erase(_funcOutDeps.begin()+i);
-  //  }
-  //  else
-  //    i++;
-
   //printf("\n");
-
-  return true;
-}
-
-// -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-bool PnlpFuncs::build()
-{
-//  // Calculate the size of the input memory
-//  _inMemSize = 0;
-//
-//  for (int f = 0; f < _funcInDeps.size(); f++)
-//    for (int i = 0; i < _funcInDeps[f].size(); i++)
-//      _inMemSize += _funcInDeps[f][i].size();
-//
-//  for (int f = 0; f < _funcInAuxs.size(); f++)
-//    for (int i = 0; i < _funcInAuxs[f].size(); i++)
-//      _inMemSize += _funcInAuxs[f][i].size();
-//
-//  // Calculate the size of the output buffer
-//  _outBufSize = 0;
-//
-//  for (int f = 0; f < _funcOutDeps.size(); f++)
-//    for (int i = 0; i < _funcOutDeps[f].size(); i++)
-//      _outBufSize += _funcOutDeps[f][i].size();
 
   return true;
 }

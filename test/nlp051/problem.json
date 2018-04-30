@@ -2,11 +2,6 @@
 	"Constraint": {
 		"numFuncs": 3,
 		"nnzJac": 7,
-		"Names": [
-				"f_constr1",
-				"f_constr2",
-				"f_constr3"
-		],
 		"Funcs": [7,8,9],
 		"JacFuncs": [1,2,3],
 		"DepIndices": [
@@ -50,11 +45,6 @@
 	"Objective": {
 		"numFuncs": 3,
 		"nnzJac": 6,
-		"Names": [
-				"f_cost1",
-				"f_cost2",
-				"f_cost3"
-		],
 		"Funcs": [10,11,12],
 		"JacFuncs": [4,5,6],
 		"DepIndices": [
@@ -98,6 +88,22 @@
 		"initial": [2.5,0.5,2,-1,0.5],
 		"lb": [-1000000,-1000000,-1000000,-1000000,-1000000],
 		"ub": [1000000,1000000,1000000,1000000,1000000]
+	},
+	"Function": {
+		"name": [
+				"J_f_constr1",
+				"J_f_constr2",
+				"J_f_constr3",
+				"J_f_cost1",
+				"J_f_cost2",
+				"J_f_cost3",
+				"f_constr1",
+				"f_constr2",
+				"f_constr3",
+				"f_cost1",
+				"f_cost2",
+				"f_cost3"
+		]
 	},
 	"Options": {
 		"initialguess": "typical",

@@ -211,7 +211,6 @@ bool PnlpProblem::_buildEvalFuncs(PnlpFuncType funcType)
   pFuncs = new PnlpFuncs(funcType, _doc);
 
   pFuncs->load(_doc);
-  pFuncs->build();
 
   _pFuncs[funcType] = pFuncs;
 
