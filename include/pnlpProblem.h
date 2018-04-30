@@ -2,12 +2,14 @@
 #ifndef PNLP_PROBLEM_H
 #define PNLP_PROBLEM_H
 
+#include <string>
 #include <vector>
 
 #include "pnlp.h"
 
 #include "rapidjson/document.h"
 
+using std::string;
 using std::vector;
 
 class PnlpFuncs;
@@ -17,11 +19,11 @@ class PnlpFuncs;
 class PnlpProblem
 {
 public:
-  PnlpProblem() {};
+  PnlpProblem(const char *name);
 
-  bool load(const char *fileName);
+  bool load();
 
-  bool build();
+  void build();
 
   void generate();
 
@@ -32,19 +34,23 @@ private:
 
   bool _buildSparsityStructure();
 
-  bool _buildObjFuncs();
-  bool _buildObjGraFuncs();
-  bool _buildConFuncs();
-  bool _buildConJacFuncs();
+  bool _buildEvalFuncs(PnlpFuncType funcType);
 
+  void _generateEvalFuncsH();
   void _generateGpuCpp();
-  void _generateGpuEvalCpp(PnlpFuncType funcType);
+  void _generateGpuEvalCppH(PnlpFuncType funcType);
 
-  void _copyFile(const char *srcFile, const char *dstFile);
+  void _replaceString(char *str, const char *oldToken, const char *newToken);
+  void _copyFile(const char *srcFile, const char *dstFile, bool force=true);
   void _copyFile(const char *srcFile, const char *dstFile,
-                 const char *oldName, const char *newName);
+                 const char *oldName, const char *newName, bool force=true);
 
 private:
+  string _name;
+
+  int   _bufferSize;
+  char *_buffer;
+
   rapidjson::Document _doc;
 
   int _numVars;
@@ -68,10 +74,7 @@ private:
 
   vector<double> _varInitValues;
 
-  PnlpFuncs *_pObjFuncs;
-  PnlpFuncs *_pObjGraFuncs;
-  PnlpFuncs *_pConFuncs;
-  PnlpFuncs *_pConJacFuncs;
+  PnlpFuncs *_pFuncs[4];
 };
 
 #endif // PNLP_PROBLEM_H

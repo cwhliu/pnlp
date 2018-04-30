@@ -24,6 +24,7 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "FuncIndices");
       _idxToCol = false;
+      _funcPrefix = "";
       _outSize = 1;
       break;
     }
@@ -34,6 +35,7 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "nzJacIndices");
       _idxToCol = true;
+      _funcPrefix = "J_";
       _outSize = doc["Variable"]["dimVars"].GetInt();
       break;
     }
@@ -44,6 +46,7 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "FuncIndices");
       _idxToCol = false;
+      _funcPrefix = "";
       _outSize = doc["Constraint"]["Dimension"].GetInt();
       break;
     }
@@ -54,6 +57,7 @@ PnlpFuncs::PnlpFuncs(PnlpFuncType funcType, const rapidjson::Document &doc)
       strcpy(_docH2InDepName,  "DepIndices");
       strcpy(_docH2OutDepName, "nzJacIndices");
       _idxToCol = false;
+      _funcPrefix = "J_";
       _outSize = doc["Constraint"]["nnzJac"].GetInt();
       break;
     }
@@ -95,7 +99,7 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
       funcOutDeps.resize (funcId+1);
 
       // Get function names
-      funcNames[funcId] = docH1["Names"][f].GetString();
+      funcNames[funcId] = _funcPrefix + docH1["Names"][f].GetString();
     }
 
     // Get function input dependencies, ie, which input variables are needed for

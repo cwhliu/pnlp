@@ -11,8 +11,7 @@ int main()
 
   SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
 
-  //app->Options()->SetNumericValue("tol", 1e-9);
-  //app->Options()->SetStringValue("mu_strategy", "adaptive");
+  app->Options()->SetStringValue("print_timing_statistics", "yes");
   app->Options()->SetStringValue("option_file_name", "ipopt.opt");
 
   ApplicationReturnStatus status;

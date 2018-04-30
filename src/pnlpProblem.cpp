@@ -10,24 +10,43 @@
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-bool PnlpProblem::load(const char *fileName)
+PnlpProblem::PnlpProblem(const char *name)
 {
-  FILE *fp = fopen(fileName, "r");
+  _name = name;
+
+  _bufferSize = 1024;
+  _buffer     = (char *)malloc(_bufferSize*sizeof(char));
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+bool PnlpProblem::load()
+{
+  // Open problem definition JSON file
+  string fileName = "test/" + _name + "/problem.json";
+
+  printf("Loading \"%s\" ... ", fileName.c_str());
+
+  FILE *fp = fopen(fileName.c_str(), "r");
 
   if (!fp) {
-    printf("\nError: can not open file \"%s\"\n\n", fileName);
+    printf("failed\n\n");
+    printf("Error: can not open file \"%s\"\n\n", fileName.c_str());
     return false;
   }
 
-  char buffer[1024];
-  rapidjson::FileReadStream fileStream(fp, buffer, sizeof(buffer));
+  // Parse the JSON file
+  rapidjson::FileReadStream fileStream(fp, _buffer, _bufferSize);
 
   _doc.ParseStream(fileStream);
 
   if (!_doc.IsObject()) {
-    printf("\nError: parse file \"%s\" failed\n\n", fileName);
+    printf("failed\n\n");
+    printf("Error: parse file \"%s\" failed\n\n", fileName.c_str());
     return false;
   }
+
+  printf("okay\n\n");
 
   fclose(fp);
 
@@ -36,7 +55,7 @@ bool PnlpProblem::load(const char *fileName)
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-bool PnlpProblem::build()
+void PnlpProblem::build()
 {
   // Problem dimensions
   _numVars = _doc["Variable"]["dimVars"].GetInt();
@@ -52,58 +71,82 @@ bool PnlpProblem::build()
   _buildSparsityStructure();
 
   // Problem evaluation functions
-  _buildObjFuncs();
-  _buildObjGraFuncs();
-  _buildConFuncs();
-  _buildConJacFuncs();
+  _buildEvalFuncs(PnlpObjFunc);
+  _buildEvalFuncs(PnlpObjGraFunc);
+  _buildEvalFuncs(PnlpConFunc);
+  _buildEvalFuncs(PnlpConJacFunc);
 
-  printf("Number of variables:        %d\n", _numVars);
-  printf("Number of constraints:      %d\n", _numCons);
-  printf("Number of nonzero Jacobian: %d\n", _numNzJac);
-
-  return true;
+  printf(" Problem name:               %s\n", _name.c_str());
+  printf(" Number of variables:        %d\n", _numVars);
+  printf(" Number of constraints:      %d\n", _numCons);
+  printf(" Number of nonzero Jacobian: %d\n", _numNzJac);
 }
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void PnlpProblem::generate()
 {
-  system("mkdir -p generated/nlp051/include");
-  system("mkdir -p generated/nlp051/src");
-  system("mkdir -p generated/nlp051/obj");
-  system("mkdir -p generated/nlp051/dep");
-  system("mkdir -p generated/nlp051/eval/include");
-  system("mkdir -p generated/nlp051/eval/src");
+  // Create directories
+  vector<string> mkdir;
 
-  // May want to skip copying inline_nath.h
-  //_copyFile("template/inline_math.h", "generated/nlp051/include/inline_math.h");
-  _copyFile("template/pnlpGpu.h", "generated/nlp051/include/pnlpGpu.h");
-  _copyFile("template/main.cpp", "generated/nlp051/src/main.cpp");
-  _copyFile("template/ipopt.opt", "generated/nlp051/ipopt.opt");
-  _copyFile("template/Makefile", "generated/nlp051/Makefile", "PH_TARGET", "nlp051");
+  mkdir.push_back("include");
+  mkdir.push_back("src");
+  mkdir.push_back("obj");
+  mkdir.push_back("dep");
+  mkdir.push_back("eval/include");
+  mkdir.push_back("eval/src");
 
-  FILE *iFile;
-  FILE *oFile;
-  char buffer[1024];
-  oFile = fopen("generated/nlp051/include/evalFuncs.h", "w");
-  fprintf(oFile, "\n#ifndef EVAL_FUNCS_H\n#define EVAL_FUNCS_H\n\n");
-  for (int i = 0; i < _pObjFuncs->getNumFuncs(); i++) {
-    fprintf(oFile, "#include \"%s.hh\"\n",   _pObjFuncs->getFuncName(i).c_str());
-    fprintf(oFile, "#include \"J_%s.hh\"\n", _pObjFuncs->getFuncName(i).c_str());
+  for (int i = 0; i < mkdir.size(); i++) {
+    string cmd = "mkdir -p generated/" + _name + "/" + mkdir[i];
+
+    system(cmd.c_str());
   }
-  for (int i = 0; i < _pConFuncs->getNumFuncs(); i++) {
-    fprintf(oFile, "#include \"%s.hh\"\n",   _pConFuncs->getFuncName(i).c_str());
-    fprintf(oFile, "#include \"J_%s.hh\"\n", _pConFuncs->getFuncName(i).c_str());
+
+  // Copy files
+  vector<string> cpSrcFile, cpDstDir;
+  vector<bool>   cpForce;
+
+  cpSrcFile.push_back("inline_math.h"); cpDstDir.push_back("include"); cpForce.push_back(false);
+  cpSrcFile.push_back("pnlpGpu.h");     cpDstDir.push_back("include"); cpForce.push_back(true);
+  cpSrcFile.push_back("main.cpp");      cpDstDir.push_back("src");     cpForce.push_back(true);
+  cpSrcFile.push_back("ipopt.opt");     cpDstDir.push_back("");        cpForce.push_back(false);
+
+  for (int i = 0; i < cpSrcFile.size(); i++) {
+    string srcFile = "template/" + cpSrcFile[i];
+    string dstFile = "generated/" + _name + "/" + cpDstDir[i] + "/" + cpSrcFile[i];
+
+    _copyFile(srcFile.c_str(), dstFile.c_str(), cpForce[i]);
   }
-  fprintf(oFile, "\n#endif\n\n");
-  fclose(oFile);
+
+  string makefileName = "generated/" + _name + "/Makefile";
+
+  _copyFile("template/Makefile", makefileName.c_str(), "PH_TARGET", _name.c_str(), false);
+
+  // Generate files
+  _generateEvalFuncsH();
 
   _generateGpuCpp();
 
-  _generateGpuEvalCpp(PnlpObjFunc);
-  _generateGpuEvalCpp(PnlpObjGraFunc);
-  _generateGpuEvalCpp(PnlpConFunc);
-  _generateGpuEvalCpp(PnlpConJacFunc);
+  _generateGpuEvalCppH(PnlpObjFunc);
+  _generateGpuEvalCppH(PnlpObjGraFunc);
+  _generateGpuEvalCppH(PnlpConFunc);
+  _generateGpuEvalCppH(PnlpConJacFunc);
+
+  // Copy evaluation functions
+  for (int i = PnlpObjFunc; i <= PnlpConJacFunc; i++)
+    for (int f = 0; f < _pFuncs[i]->getNumFuncs(); f++) {
+      string fileName = _pFuncs[i]->getFuncName(f) + ".hh";
+      string srcFile  = "test/" + _name + "/include/" + fileName;
+      string dstFile  = "generated/" + _name + "/eval/include/" + fileName;
+
+      _copyFile(srcFile.c_str(), dstFile.c_str(), false);
+
+      fileName = _pFuncs[i]->getFuncName(f) + ".cu";
+      srcFile  = "test/" + _name + "/src/" + fileName;
+      dstFile  = "generated/" + _name + "/eval/src/" + fileName;
+
+      _copyFile(srcFile.c_str(), dstFile.c_str(), false);
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -140,17 +183,17 @@ bool PnlpProblem::_buildStartingPoint()
 // -----------------------------------------------------------------------------
 bool PnlpProblem::_buildSparsityStructure()
 {
+  // Get gradient function's nonzero rows/columns
   _numNzGra = _doc["Objective"]["nnzJac"].GetInt();
 
-  // Get gradient function's nonzero rows/columns
   for (int i = 0; i < _numNzGra; i++) {
     _nzGraRows.push_back(_doc["Objective"]["nzJacRows"][i].GetInt()-1);
     _nzGraCols.push_back(_doc["Objective"]["nzJacCols"][i].GetInt()-1);
   }
 
+  // Get Jacobian function's nonzero rows/columns
   _numNzJac = _doc["Constraint"]["nnzJac"].GetInt();
 
-  // Get Jacobian function's nonzero rows/columns
   for (int i = 0; i < _numNzJac; i++) {
     _nzJacRows.push_back(_doc["Constraint"]["nzJacRows"][i].GetInt()-1);
     _nzJacCols.push_back(_doc["Constraint"]["nzJacCols"][i].GetInt()-1);
@@ -161,64 +204,58 @@ bool PnlpProblem::_buildSparsityStructure()
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-bool PnlpProblem::_buildObjFuncs()
+bool PnlpProblem::_buildEvalFuncs(PnlpFuncType funcType)
 {
-  _pObjFuncs = new PnlpFuncs(PnlpObjFunc, _doc);
+  PnlpFuncs *pFuncs;
 
-  _pObjFuncs->load(_doc);
+  pFuncs = new PnlpFuncs(funcType, _doc);
 
-  return _pObjFuncs->build();
+  pFuncs->load(_doc);
+  pFuncs->build();
+
+  _pFuncs[funcType] = pFuncs;
+
+  return true;
 }
 
 // -----------------------------------------------------------------------------
-bool PnlpProblem::_buildObjGraFuncs()
-{
-  _pObjGraFuncs = new PnlpFuncs(PnlpObjGraFunc, _doc);
-
-  _pObjGraFuncs->load(_doc);
-
-  return _pObjGraFuncs->build();
-}
-
 // -----------------------------------------------------------------------------
-bool PnlpProblem::_buildConFuncs()
+void PnlpProblem::_generateEvalFuncsH()
 {
-  _pConFuncs = new PnlpFuncs(PnlpConFunc, _doc);
+  string fileName = "generated/" + _name + "/include/evalFuncs.h";
 
-  _pConFuncs->load(_doc);
+  FILE *fp = fopen(fileName.c_str(), "w");
 
-  return _pConFuncs->build();
-}
+  fprintf(fp, "\n#ifndef EVAL_FUNCS_H\n#define EVAL_FUNCS_H\n\n");
 
-// -----------------------------------------------------------------------------
-bool PnlpProblem::_buildConJacFuncs()
-{
-  _pConJacFuncs = new PnlpFuncs(PnlpConJacFunc, _doc);
+  for (int i = PnlpObjFunc; i <= PnlpConJacFunc; i++)
+    for (int f = 0; f < _pFuncs[i]->getNumFuncs(); f++)
+      fprintf(fp, "#include \"%s.hh\"\n", _pFuncs[i]->getFuncName(f).c_str());
 
-  _pConJacFuncs->load(_doc);
+  fprintf(fp, "\n#endif\n\n");
 
-  return _pConJacFuncs->build();
+  fclose(fp);
 }
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void PnlpProblem::_generateGpuCpp()
 {
+  string oFileName = "generated/" + _name + "/src/pnlpGpu.cpp";
+
   FILE *iFile = fopen("template/pnlpGpu.cpp", "r");
-  FILE *oFile = fopen("generated/nlp051/src/pnlpGpu.cpp", "w");
+  FILE *oFile = fopen(oFileName.c_str(), "w");
 
-  char buffer[1024];
-
-  while (fgets(buffer, sizeof(buffer), iFile)) {
+  while (fgets(_buffer, _bufferSize, iFile)) {
     // Replace the placeholder in get_nlp_info
-    if (strcmp(buffer, "//PH_NLP_INFO\n") == 0) {
+    if (strcmp(_buffer, "//PH_NLP_INFO\n") == 0) {
       fprintf(oFile, "  n = %d;\n", _numVars);
       fprintf(oFile, "  m = %d;\n", _numCons);
       fprintf(oFile, "  nnz_jac_g = %d;\n", _numNzJac);
     }
     else
     // Replace the placeholder in get_bounds_info
-    if (strcmp(buffer, "//PH_BOUNDS_INFO\n") == 0) {
+    if (strcmp(_buffer, "//PH_BOUNDS_INFO\n") == 0) {
       fprintf(oFile, "  assert(n == %d);\n", _numVars);
       fprintf(oFile, "  assert(m == %d);\n\n", _numCons);
 
@@ -237,20 +274,20 @@ void PnlpProblem::_generateGpuCpp()
     }
     else
     // Replace the placeholder in get_starting_point
-    if (strcmp(buffer, "//PH_STARTING_POINT\n") == 0) {
+    if (strcmp(_buffer, "//PH_STARTING_POINT\n") == 0) {
       for (int i = 0; i < _numVars; i++)
         fprintf(oFile, "  x[%d] = %f;\n", i, _varInitValues[i]);
     }
     else
     // Replace the placeholder for Jacobian sparsity structure
-    if (strcmp(buffer, "//PH_JAC_STRUCTURE\n") == 0) {
+    if (strcmp(_buffer, "//PH_JAC_STRUCTURE\n") == 0) {
       for (int i = 0; i < _numNzJac; i++) {
         fprintf(oFile, "    iRow[%d] = %d;", i, _nzJacRows[i]);
         fprintf(oFile, "  jCol[%d] = %d;\n", i, _nzJacCols[i]);
       }
     }
     else
-      fprintf(oFile, "%s", buffer);
+      fprintf(oFile, "%s", _buffer);
   }
 
   fclose(iFile);
@@ -258,12 +295,11 @@ void PnlpProblem::_generateGpuCpp()
 }
 
 // -----------------------------------------------------------------------------
-void PnlpProblem::_generateGpuEvalCpp(PnlpFuncType funcType)
+void PnlpProblem::_generateGpuEvalCppH(PnlpFuncType funcType)
 {
   string fileName;
   string className;
   string macroName;
-  string funcPrefix;
   PnlpFuncs *pFuncs;
 
   switch (funcType) {
@@ -271,73 +307,56 @@ void PnlpProblem::_generateGpuEvalCpp(PnlpFuncType funcType)
       fileName   = "pnlpGpuEvalObj";
       className  = "PnlpGpuEvalObj";
       macroName  = "PNLP_GPU_EVAL_OBJ";
-      funcPrefix = "";
-      pFuncs     = _pObjFuncs;
       break;
     }
     case PnlpObjGraFunc: {
       fileName   = "pnlpGpuEvalObjGra";
       className  = "PnlpGpuEvalObjGra";
       macroName  = "PNLP_GPU_EVAL_OBJ_GRA";
-      funcPrefix = "J_";
-      pFuncs     = _pObjGraFuncs;
       break;
     }
     case PnlpConFunc: {
       fileName   = "pnlpGpuEvalCon";
       className  = "PnlpGpuEvalCon";
       macroName  = "PNLP_GPU_EVAL_CON";
-      funcPrefix = "";
-      pFuncs     = _pConFuncs;
       break;
     }
     case PnlpConJacFunc: {
       fileName   = "pnlpGpuEvalConJac";
       className  = "PnlpGpuEvalConJac";
       macroName  = "PNLP_GPU_EVAL_CON_JAC";
-      funcPrefix = "J_";
-      pFuncs     = _pConJacFuncs;
       break;
     }
   }
 
+  pFuncs = _pFuncs[funcType];
+
+  // Create the cpp file
   string iFileName = "template/pnlpGpuEval.cpp";
-  string oFileName = "generated/nlp051/src/" + fileName + ".cu";
+  string oFileName = "generated/" + _name + "/src/" + fileName + ".cu";
 
   FILE *iFile = fopen(iFileName.c_str(), "r");
   FILE *oFile = fopen(oFileName.c_str(), "w");
 
-  char buffer[1024];
+  while (fgets(_buffer, _bufferSize, iFile)) {
+    // Replace the placeholder for class name and file name in the template file
+    _replaceString(_buffer, "PH_PnlpGpuEval", className.c_str());
+    _replaceString(_buffer, "PH_pnlpGpuEval", fileName.c_str());
 
-  while (fgets(buffer, sizeof(buffer), iFile)) {
-    string line = buffer;
-
-    int pos = line.find("PH_PnlpGpuEval");
-    if (pos != string::npos) {
-      line.replace(pos, 14, className);
-      strcpy(buffer, line.c_str());
-    }
-
-    // Replace the placeholder for file name with the actual name, most likely
-    // only for the include .h statement
-    pos = line.find("PH_pnlpGpuEval");
-    if (pos != string::npos) {
-      line.replace(pos, 14, fileName);
-      strcpy(buffer, line.c_str());
-    }
-
-    if (strcmp(buffer, "//PH_INIT\n") == 0) {
+    if (strcmp(_buffer, "//PH_INIT\n") == 0) {
       fprintf(oFile, "  %s_pInMemCpu  = (double*)malloc(%d*sizeof(double));\n",
                         className.c_str(), pFuncs->getInMemSize());
       fprintf(oFile, "  %s_pOutMemCpu = (double*)malloc(%d*sizeof(double));\n\n",
                         className.c_str(), pFuncs->getOutMemSize());
+      fprintf(oFile, "  #ifdef PNLP_ON_GPU\n");
       fprintf(oFile, "  cudaMalloc(&%s_pInMemGpu,  %d*sizeof(double));\n",
                         className.c_str(), pFuncs->getInMemSize());
       fprintf(oFile, "  cudaMalloc(&%s_pOutMemGpu, %d*sizeof(double));\n",
                         className.c_str(), pFuncs->getOutMemSize());
+      fprintf(oFile, "  #endif // PNLP_ON_GPU\n");
     }
     else
-    if (strcmp(buffer, "//PH_EVAL\n") == 0) {
+    if (strcmp(_buffer, "//PH_EVAL\n") == 0) {
       fprintf(oFile, "  // Preamble\n");
 
       for (int f = 0; f < pFuncs->getNumFuncs(); f++) {
@@ -353,19 +372,26 @@ void PnlpProblem::_generateGpuEvalCpp(PnlpFuncType funcType)
       }
       fprintf(oFile, "\n");
 
+      fprintf(oFile, "  #ifdef PNLP_ON_GPU\n");
       fprintf(oFile, "  cudaMemcpy(%s_pInMemGpu, %s_pInMemCpu, %d*sizeof(double), %s);\n\n",
                         className.c_str(), className.c_str(),
                         pFuncs->getInMemSize(), "cudaMemcpyHostToDevice");
 
       fprintf(oFile, "  // Deploy\n");
-      fprintf(oFile, "  %sKernel <<<3, 1>>> (%s_pInMemGpu, %s_pOutMemGpu);\n\n",
-                        className.c_str(), className.c_str(), className.c_str());
+      fprintf(oFile, "  %sKernel <<<%d, 1>>> (%s_pInMemGpu, %s_pOutMemGpu);\n\n",
+                        className.c_str(), pFuncs->getNumFuncs(), className.c_str(), className.c_str());
       fprintf(oFile, "  cudaDeviceSynchronize();\n\n");
 
       fprintf(oFile, "  // Postamble\n");
-      fprintf(oFile, "  cudaMemcpy(%s_pOutMemCpu, %s_pOutMemGpu, %d*sizeof(double), %s);\n\n",
+      fprintf(oFile, "  cudaMemcpy(%s_pOutMemCpu, %s_pOutMemGpu, %d*sizeof(double), %s);\n",
                         className.c_str(), className.c_str(),
                         pFuncs->getOutMemSize(), "cudaMemcpyDeviceToHost");
+      fprintf(oFile, "  #else\n");
+      fprintf(oFile, "  for (int f = 0; f < %d; f++)\n", pFuncs->getNumFuncs());
+      fprintf(oFile, "    %sKernel(f, %s_pInMemCpu, %s_pOutMemCpu);\n",
+                          className.c_str(), className.c_str(), className.c_str());
+      fprintf(oFile, "  #endif\n\n");
+
       fprintf(oFile, "  memset(output, 0, %d*sizeof(double));\n",
                         pFuncs->getOutSize());
 
@@ -378,46 +404,37 @@ void PnlpProblem::_generateGpuEvalCpp(PnlpFuncType funcType)
       }
     }
     else
-    if (strcmp(buffer, "//PH_KERNEL\n") == 0) {
+    if (strcmp(_buffer, "//PH_KERNEL\n") == 0) {
       fprintf(oFile, "  switch (idx) {\n");
       for (int f = 0; f < pFuncs->getNumFuncs(); f++)
-        fprintf(oFile, "    case %d: { %s%s(output+%d, input+%d); break; }\n",
-                            f, funcPrefix.c_str(), pFuncs->getFuncName(f).c_str(),
+        fprintf(oFile, "    case %d: { %s(output+%d, input+%d); break; }\n",
+                            f, pFuncs->getFuncName(f).c_str(),
                             pFuncs->getFuncOutMemOffset(f),
                             pFuncs->getFuncInMemOffset(f));
       fprintf(oFile, "    default: break;\n");
       fprintf(oFile, "  }\n");
     }
     else
-      fprintf(oFile, "%s", buffer);
+      fprintf(oFile, "%s", _buffer);
   }
 
   fclose(iFile);
   fclose(oFile);
 
-  // Copy header file and change the class name
+  // Create the header file
   iFileName = "template/pnlpGpuEval.h";
-  oFileName = "generated/nlp051/include/" + fileName + ".h";
+  oFileName = "generated/" + _name + "/include/" + fileName + ".h";
 
   iFile = fopen(iFileName.c_str(), "r");
   oFile = fopen(oFileName.c_str(), "w");
 
-  while (fgets(buffer, sizeof(buffer), iFile)) {
-    string line = buffer;
+  while (fgets(_buffer, _bufferSize, iFile)) {
+    string line = _buffer;
 
-    int pos = line.find("PH_PNLP_GPU_EVAL");
-    if (pos != string::npos) {
-      line.replace(pos, 16, macroName);
-      strcpy(buffer, line.c_str());
-    }
+    _replaceString(_buffer, "PH_PNLP_GPU_EVAL", macroName.c_str());
+    _replaceString(_buffer, "PH_PnlpGpuEval",   className.c_str());
 
-    pos = line.find("PH_PnlpGpuEval");
-    if (pos != string::npos) {
-      line.replace(pos, 14, className);
-      strcpy(buffer, line.c_str());
-    }
-
-    fprintf(oFile, "%s", buffer);
+    fprintf(oFile, "%s", _buffer);
   }
 
   fclose(iFile);
@@ -426,32 +443,54 @@ void PnlpProblem::_generateGpuEvalCpp(PnlpFuncType funcType)
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-void PnlpProblem::_copyFile(const char *srcFile, const char *dstFile)
+void PnlpProblem::_replaceString(char *str, const char *oldToken, const char *newToken)
 {
-  _copyFile(srcFile, dstFile, "", "");
+  string line = str;
+
+  int pos = line.find(oldToken);
+
+  if (pos != string::npos) {
+    line.replace(pos, strlen(oldToken), newToken);
+
+    strcpy(str, line.c_str());
+  }
+}
+
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void PnlpProblem::_copyFile(const char *srcFile, const char *dstFile, bool force)
+{
+  _copyFile(srcFile, dstFile, "", "", force);
 }
 
 // -----------------------------------------------------------------------------
 void PnlpProblem::_copyFile(const char *srcFile, const char *dstFile,
-                            const char *oldName, const char *newName)
+                            const char *oldName, const char *newName, bool force)
 {
-  char buffer[1024];
+  if (!force) {
+    FILE *fp = fopen(dstFile, "r");
+
+    if (fp) {
+      fclose(fp);
+      return;
+    }
+  }
 
   FILE *iFile = fopen(srcFile, "r");
   FILE *oFile = fopen(dstFile, "w");
 
-  while (fgets(buffer, sizeof(buffer), iFile)) {
+  while (fgets(_buffer, _bufferSize, iFile)) {
     if (oldName != "") {
-      string line = buffer;
+      string line = _buffer;
 
       int pos = line.find(oldName);
       if (pos != string::npos) {
         line.replace(pos, strlen(oldName), newName);
-        strcpy(buffer, line.c_str());
+        strcpy(_buffer, line.c_str());
       }
     }
 
-    fprintf(oFile, "%s", buffer);
+    fprintf(oFile, "%s", _buffer);
   }
 
   fclose(iFile);

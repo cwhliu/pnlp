@@ -3,10 +3,10 @@
 #define PNLP_H
 
 typedef enum {
-  PnlpObjFunc,
-  PnlpObjGraFunc,
-  PnlpConFunc,
-  PnlpConJacFunc
+  PnlpObjFunc    = 0,
+  PnlpConFunc    = 1,
+  PnlpObjGraFunc = 2,
+  PnlpConJacFunc = 3
 } PnlpFuncType;
 
 #endif // PNLP_H

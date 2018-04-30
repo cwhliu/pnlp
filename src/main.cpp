@@ -9,10 +9,12 @@ int main()
 {
   printf("\nPNLP - Parallel Nonlinear Programming\n\n");
 
-  PnlpProblem *pProb = new PnlpProblem;
+  PnlpProblem *pProb = new PnlpProblem("nlp051");
 
-  pProb->load("test/nlp051/problem.json");
+  if (!pProb->load()) return 1;
+
   pProb->build();
+
   pProb->generate();
 
   printf("\nbye ...\n\n");

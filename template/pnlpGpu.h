@@ -6,11 +6,6 @@
 
 using namespace Ipopt;
 
-//class PnlpGpuEvalObj;
-//class PnlpGpuEvalObjGra;
-//class PnlpGpuEvalCon;
-//class PnlpGpuEvalConJac;
-
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 class PnlpGpu : public TNLP
@@ -51,11 +46,6 @@ public:
                       Number obj_factor, Index m, const Number *lambda,
                       bool new_lambda, Index nele_hess,
                       Index *iRow, Index *jCol, Number *values);
-//private:
-//  PnlpGpuEvalObj    *_pObjFuncs;
-//  PnlpGpuEvalObjGra *_pObjGraFuncs;
-//  PnlpGpuEvalCon    *_pConFuncs;
-//  PnlpGpuEvalConJac *_pConJacFuncs;
 };
 
 #endif // PNLP_GPU_H

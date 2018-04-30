@@ -50,9 +50,12 @@ private:
   char *_docH2Name;
   char *_docH2InDepName;
   char *_docH2OutDepName;
-  bool  _idxToCol; // TODO see if there's a better way
+
+  bool _idxToCol; // TODO see if there's a better way
 
   int _numFuncs;
+  string _funcPrefix;
+
   int _outSize;
 
   vector< string         > _funcNames;

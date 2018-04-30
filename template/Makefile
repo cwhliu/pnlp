@@ -5,11 +5,14 @@
 
 TARGET       := PH_TARGET
 
+# Select to run on GPU or CPU
+RUN_ON       := GPU
+
 # Source directories
 SRC_DIR      := src eval/src
 # Include directories
 INC_DIR      := include eval/include
-INC_DIR      += ../../../ipopt/cur/include/coin
+INC_DIR      += ${IPOPT_HOME}/include/coin
 
 # Source files
 SRC_FILES    := $(foreach i,$(SRC_DIR),$(wildcard $i/*.cpp))
@@ -25,17 +28,25 @@ DEP_FILES    += $(subst .o,.d,$(CU_OBJ_FILES))
 DEP_FILES    := $(addprefix dep/,$(notdir $(DEP_FILES)))
 
 # Flags
-CXXFLAGS     := #-Wall -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-variable
+CXXFLAGS     := -DPNLP_ON_$(RUN_ON)
+CXXFLAGS     += #-Wall -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-variable
 CXXFLAGS     += -O3 #-std=c++11
 CXXFLAGS     += $(addprefix -I,$(INC_DIR))
 
-NVCCFLAGS    := $(addprefix -I,$(INC_DIR)) --gpu-architecture=sm_35 --disable-warnings
+NVCCFLAGS    := -DPNLP_ON_$(RUN_ON)
+NVCCFLAGS    += $(addprefix -I,$(INC_DIR)) --gpu-architecture=sm_35 --disable-warnings
 #NVCCFLAGS += -Xptxas --disable-optimizer-constants
 #NVCCFLAGS += --ptxas-options=-v
 
-LDFLAGS      := -L${CUDA_HOME}/lib64 -lcudadevrt -lcudart
-#LDFLAGS      += -L${MKL_HOME}/lib/intel64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_rt -lpthread -lm -ldl
-LDFLAGS      += -L${COINHSL_HOME}/lib -lcoinhsl -L${IPOPT_HOME}/lib -lipopt
+# Linker flags for CUDA
+LDFLAGS      += -L${CUDA_HOME}/lib64
+LDFLAGS      += -lcudadevrt -lcudart
+# Linker flags for Intel MKL
+LDFLAGS      += -L${MKL_HOME}/lib/intel64
+LDFLAGS      += -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_rt -lpthread -lm -ldl
+# Linker flags for IPOPT and HSL
+LDFLAGS      += -L${COINHSL_HOME}/lib -L${IPOPT_HOME}/lib
+LDFLAGS      += -lcoinhsl -lcoinmetis -lipopt
 
 # Utilities
 SHELL     := /bin/sh
