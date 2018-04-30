@@ -9,6 +9,7 @@ TARGET    := pnlp
 SRC_DIR   := src
 # Include directories
 INC_DIR   := include
+INC_DIR   += ../rapidjson/include
 
 # Source files
 SRC_FILES := $(foreach i,$(SRC_DIR),$(wildcard $i/*.cpp))
@@ -20,7 +21,7 @@ DEP_FILES := $(subst .o,.d,$(OBJ_FILES))
 DEP_FILES := $(addprefix dep/,$(notdir $(DEP_FILES)))
 
 # Flags
-CXXFLAGS  := -Wall -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-variable
+CXXFLAGS  := #-Wall -Wno-unused-but-set-variable -Wno-unused-result -Wno-unused-variable
 CXXFLAGS  += -O3 #-std=c++11
 CXXFLAGS  += $(addprefix -I,$(INC_DIR))
 
@@ -49,6 +50,7 @@ endif
 
 .PHONY: default
 default: $(OBJ_FILES)
+	@echo "  Linking $(TARGET)"
 	@$(CXX) $(OBJ_FILES) $(LDFLAGS) -o $(TARGET)
 
 .PHONY: clean
@@ -58,7 +60,7 @@ clean:
 	@$(RM) $(DEP_FILES)
 
 obj/%.o: %.cpp
-	@echo "  CXX  $(notdir $<)"
+	@echo "  CXX $(notdir $<)"
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
 dep/%.d: %.cpp

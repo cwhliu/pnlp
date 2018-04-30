@@ -1,0 +1,122 @@
+{
+	"Constraint": {
+		"numFuncs": 3,
+		"nnzJac": 7,
+		"Names": [
+				"f_constr1",
+				"f_constr2",
+				"f_constr3"
+		],
+		"Funcs": [7,8,9],
+		"JacFuncs": [1,2,3],
+		"DepIndices": [
+				[1,2,3],
+				[1,2,3,4,5],
+				[1,2,3,4,5]
+		],
+		"AuxData": [
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			},
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			},
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			}
+		],
+		"FuncIndices": [
+				[1],
+				[2],
+				[3]
+		],
+		"nzJacRows": [1,1,2,2,2,3,3],
+		"nzJacCols": [1,2,3,4,5,2,5],
+		"nzJacIndices": [
+				[1,2],
+				[3,4,5],
+				[6,7]
+		],
+		"Dimension": 3,
+		"LowerBound": [4,0,0],
+		"UpperBound": [4,0,0]
+	},
+	"Objective": {
+		"numFuncs": 3,
+		"nnzJac": 6,
+		"Names": [
+				"f_cost1",
+				"f_cost2",
+				"f_cost3"
+		],
+		"Funcs": [10,11,12],
+		"JacFuncs": [4,5,6],
+		"DepIndices": [
+				[1,2,3],
+				[1,2,3],
+				[4,5]
+		],
+		"AuxData": [
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			},
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			},
+				{
+				"_ArrayType_": "double",
+				"_ArraySize_": [0,0],
+				"_ArrayData_": null
+			}
+		],
+		"FuncIndices": [
+				[1],
+				[1],
+				[1]
+		],
+		"nzJacRows": [1,1,1,1,1,1],
+		"nzJacCols": [1,2,2,3,4,5],
+		"nzJacIndices": [
+				[1,2],
+				[3,4],
+				[5,6]
+		],
+		"Dimension": 3
+	},
+	"Variable": {
+		"dimVars": 5,
+		"initial": [2.5,0.5,2,-1,0.5],
+		"lb": [-1000000,-1000000,-1000000,-1000000,-1000000],
+		"ub": [1000000,1000000,1000000,1000000,1000000]
+	},
+	"Options": {
+		"initialguess": "typical",
+		"ipopt": {
+			"mu_strategy": "adaptive",
+			"max_iter": 1000,
+			"tol": 0.001,
+			"linear_solver": "ma57",
+			"ma57_automatic_scaling": "yes",
+			"linear_scaling_on_demand": "no",
+			"hessian_approximation": "limited-memory",
+			"limited_memory_update_type": "bfgs",
+			"limited_memory_max_history": 10,
+			"fixed_variable_treatment": "RELAX_BOUNDS",
+			"point_perturbation_radius": 0,
+			"jac_c_constant": "yes",
+			"derivative_test": "first-order",
+			"derivative_test_perturbation": 1e-07
+		},
+		"UseMexSparse": 1
+	}
+}

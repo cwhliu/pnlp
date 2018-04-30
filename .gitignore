@@ -1,5 +1,9 @@
 
 pnlp
+generated
+
 dep/*.d
 obj/*.o
+
+*.swp
 
