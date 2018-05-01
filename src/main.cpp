@@ -5,14 +5,18 @@
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-int main()
+int main(int argc, char **argv)
 {
   printf("\nPNLP - Parallel Nonlinear Programming\n\n");
 
+  if (argc != 2) {
+    printf("Usage: %s problem_name\n\n", argv[0]);
+    return 1;
+  }
+
   PnlpProblem *pProb;
 
-  pProb = new PnlpProblem("nlp051");
-  //pProb = new PnlpProblem("atlas");
+  pProb = new PnlpProblem(argv[1]);
 
   if (!pProb->load())
     return 1;

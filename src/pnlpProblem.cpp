@@ -91,6 +91,7 @@ void PnlpProblem::generate()
 
   mkdir.push_back("include");
   mkdir.push_back("src");
+  mkdir.push_back("constant");
   mkdir.push_back("obj");
   mkdir.push_back("dep");
   mkdir.push_back("eval/include");
@@ -131,6 +132,12 @@ void PnlpProblem::generate()
   _generateGpuEvalCppH(PnlpObjGraFunc);
   _generateGpuEvalCppH(PnlpConFunc);
   _generateGpuEvalCppH(PnlpConJacFunc);
+
+  _generateConstantTxt(PnlpObjFunc);
+  _generateConstantTxt(PnlpObjGraFunc);
+  _generateConstantTxt(PnlpConFunc);
+  _generateConstantTxt(PnlpConJacFunc);
+  _generateConstantTxt(PnlpGpu);
 
   // Copy evaluation functions
   for (int i = PnlpObjFunc; i <= PnlpConJacFunc; i++)
@@ -227,9 +234,20 @@ void PnlpProblem::_generateEvalFuncsH()
 
   fprintf(fp, "\n#ifndef EVAL_FUNCS_H\n#define EVAL_FUNCS_H\n\n");
 
+  string prevFileName;
+
   for (int i = PnlpObjFunc; i <= PnlpConJacFunc; i++)
-    for (int f = 0; f < _pFuncs[i]->getNumFuncs(); f++)
-      fprintf(fp, "#include \"%s.hh\"\n", _pFuncs[i]->getFuncName(f).c_str());
+    for (int f = 0; f < _pFuncs[i]->getNumFuncs(); f++) {
+      fileName = _pFuncs[i]->getFuncName(f);
+
+      // Functions can be evaluated multiple times, we only want to include the
+      // header file once
+      if (fileName != prevFileName) {
+        fprintf(fp, "#include \"%s.hh\"\n", fileName.c_str());
+
+        prevFileName = fileName;
+      }
+    }
 
   fprintf(fp, "\n#endif\n\n");
 
@@ -251,39 +269,6 @@ void PnlpProblem::_generateGpuCpp()
       fprintf(oFile, "  n = %d;\n", _numVars);
       fprintf(oFile, "  m = %d;\n", _numCons);
       fprintf(oFile, "  nnz_jac_g = %d;\n", _numNzJac);
-    }
-    else
-    // Replace the placeholder in get_bounds_info
-    if (strcmp(_buffer, "//PH_BOUNDS_INFO\n") == 0) {
-      fprintf(oFile, "  assert(n == %d);\n", _numVars);
-      fprintf(oFile, "  assert(m == %d);\n\n", _numCons);
-
-      for (int i = 0; i < _numVars; i++)
-        fprintf(oFile, "  x_l[%d] = %f;\n", i, _varLowerBounds[i]);
-      fprintf(oFile, "\n");
-      for (int i = 0; i < _numVars; i++)
-        fprintf(oFile, "  x_u[%d] = %f;\n", i, _varUpperBounds[i]);
-      fprintf(oFile, "\n");
-
-      for (int i = 0; i < _numCons; i++)
-        fprintf(oFile, "  g_l[%d] = %f;\n", i, _conLowerBounds[i]);
-      fprintf(oFile, "\n");
-      for (int i = 0; i < _numCons; i++)
-        fprintf(oFile, "  g_u[%d] = %f;\n", i, _conUpperBounds[i]);
-    }
-    else
-    // Replace the placeholder in get_starting_point
-    if (strcmp(_buffer, "//PH_STARTING_POINT\n") == 0) {
-      for (int i = 0; i < _numVars; i++)
-        fprintf(oFile, "  x[%d] = %f;\n", i, _varInitValues[i]);
-    }
-    else
-    // Replace the placeholder for Jacobian sparsity structure
-    if (strcmp(_buffer, "//PH_JAC_STRUCTURE\n") == 0) {
-      for (int i = 0; i < _numNzJac; i++) {
-        fprintf(oFile, "    iRow[%d] = %d;", i, _nzJacRows[i]);
-        fprintf(oFile, "  jCol[%d] = %d;\n", i, _nzJacCols[i]);
-      }
     }
     else
       fprintf(oFile, "%s", _buffer);
@@ -358,17 +343,13 @@ void PnlpProblem::_generateGpuEvalCppH(PnlpFuncType funcType)
     if (strcmp(_buffer, "//PH_EVAL\n") == 0) {
       fprintf(oFile, "  // Preamble\n");
 
-      for (int f = 0; f < pFuncs->getNumFuncs(); f++) {
-        int offset = pFuncs->getFuncInMemOffset(f);
-
-        for (int i = 0; i < pFuncs->getFuncInDepSize(f); i++)
-          fprintf(oFile, "  %s_pInMemCpu[%d+%d] = input[%d];\n",
-                            className.c_str(), offset, i, pFuncs->getFuncInDep(f, i));
-
-        for (int i = 0; i < pFuncs->getFuncInAuxSize(f); i++)
-          fprintf(oFile, "  %s_pInMemCpu[%d+%d] = %f;\n",
-                            className.c_str(), offset, i, pFuncs->getFuncInAux(f, i));
-      }
+      fprintf(oFile, "  for (int i = 0; i < %d; i++)\n", pFuncs->getInMemSize());
+      fprintf(oFile, "    if (%s_InRemapIdx[i] == -1)\n", className.c_str());
+      fprintf(oFile, "      %s_pInMemCpu[ %s_InRemapMem[i] ] = %s_InRemapAux[i];\n",
+                            className.c_str(), className.c_str(), className.c_str());
+      fprintf(oFile, "    else\n");
+      fprintf(oFile, "      %s_pInMemCpu[ %s_InRemapMem[i] ] = input[ %s_InRemapIdx[i] ];\n",
+                            className.c_str(), className.c_str(), className.c_str());
       fprintf(oFile, "\n");
 
       fprintf(oFile, "  #ifdef PNLP_ON_GPU\n");
@@ -394,13 +375,9 @@ void PnlpProblem::_generateGpuEvalCppH(PnlpFuncType funcType)
       fprintf(oFile, "  memset(output, 0, %d*sizeof(double));\n",
                         pFuncs->getOutSize());
 
-      for (int f = 0; f < pFuncs->getNumFuncs(); f++) {
-        int offset = pFuncs->getFuncOutMemOffset(f);
-
-        for (int i = 0; i < pFuncs->getFuncOutDepSize(f); i++)
-          fprintf(oFile, "  output[%d] += %s_pOutMemCpu[%d+%d];\n",
-                            pFuncs->getFuncOutDep(f, i), className.c_str(), offset, i);
-      }
+      fprintf(oFile, "  for (int i = 0; i < %d; i++)\n", pFuncs->getOutMemSize());
+      fprintf(oFile, "    output[ %s_OutRemapIdx[i] ] += %s_pOutMemCpu[ %s_OutRemapMem[i] ];\n",
+                          className.c_str(), className.c_str(), className.c_str());
     }
     else
     if (strcmp(_buffer, "//PH_KERNEL\n") == 0) {
@@ -438,6 +415,85 @@ void PnlpProblem::_generateGpuEvalCppH(PnlpFuncType funcType)
 
   fclose(iFile);
   fclose(oFile);
+}
+
+// -----------------------------------------------------------------------------
+void PnlpProblem::_generateConstantTxt(PnlpFuncType funcType)
+{
+  FILE *fp;
+  string fileName, oFileName;
+
+  if (funcType == PnlpGpu) {
+    // Create bound constant file
+    oFileName = "generated/" + _name + "/constant/bounds.txt";
+    fp = fopen(oFileName.c_str(), "w");
+
+    for (int i = 0; i < _numVars; i++)
+      fprintf(fp, "%f %f\n", _varLowerBounds[i], _varUpperBounds[i]);
+
+    for (int i = 0; i < _numCons; i++)
+      fprintf(fp, "%f %f\n", _conLowerBounds[i], _conUpperBounds[i]);
+
+    fclose(fp);
+
+    // Create starting point constant file
+    oFileName = "generated/" + _name + "/constant/initValues.txt";
+    fp = fopen(oFileName.c_str(), "w");
+
+    for (int i = 0; i < _numVars; i++)
+      fprintf(fp, "%f\n", _varInitValues[i]);
+
+    fclose(fp);
+
+    // Create Jacobian sparsity structure constant file
+    oFileName = "generated/" + _name + "/constant/jacRowCol.txt";
+    fp = fopen(oFileName.c_str(), "w");
+
+    for (int i = 0; i < _numNzJac; i++)
+      fprintf(fp, "%d %d\n", _nzJacRows[i], _nzJacCols[i]);
+
+    fclose(fp);
+  }
+  else {
+    switch (funcType) {
+      case PnlpObjFunc:    { fileName = "pnlpGpuEvalObj";    break; }
+      case PnlpObjGraFunc: { fileName = "pnlpGpuEvalObjGra"; break; }
+      case PnlpConFunc:    { fileName = "pnlpGpuEvalCon";    break; }
+      case PnlpConJacFunc: { fileName = "pnlpGpuEvalConJac"; break; }
+    }
+    PnlpFuncs *pFuncs = _pFuncs[funcType];
+
+    // Create input to memory mapping constant file
+    oFileName = "generated/" + _name + "/constant/" + fileName + "In.txt";
+    fp = fopen(oFileName.c_str(), "w");
+
+    for (int f = 0; f < pFuncs->getNumFuncs(); f++) {
+      int offset = pFuncs->getFuncInMemOffset(f);
+
+      for (int i = 0; i < pFuncs->getFuncInDepSize(f); i++)
+        fprintf(fp, "%d %d 0\n", offset+i, pFuncs->getFuncInDep(f, i));
+
+      offset += pFuncs->getFuncInDepSize(f);
+
+      for (int i = 0; i < pFuncs->getFuncInAuxSize(f); i++)
+        fprintf(fp, "%d -1 %f\n", offset+i, pFuncs->getFuncInAux(f, i));
+    }
+
+    fclose(fp);
+
+    // Create memory to output mapping constant file
+    oFileName = "generated/" + _name + "/constant/" + fileName + "Out.txt";
+    fp = fopen(oFileName.c_str(), "w");
+
+    for (int f = 0; f < pFuncs->getNumFuncs(); f++) {
+      int offset = pFuncs->getFuncOutMemOffset(f);
+
+      for (int i = 0; i < pFuncs->getFuncOutDepSize(f); i++)
+        fprintf(fp, "%d %d\n", pFuncs->getFuncOutDep(f, i), offset+i);
+    }
+
+    fclose(fp);
+  }
 }
 
 // -----------------------------------------------------------------------------

@@ -39,6 +39,7 @@ private:
   void _generateEvalFuncsH();
   void _generateGpuCpp();
   void _generateGpuEvalCppH(PnlpFuncType funcType);
+  void _generateConstantTxt(PnlpFuncType funcType);
 
   void _replaceString(char *str, const char *oldToken, const char *newToken);
   void _copyFile(const char *srcFile, const char *dstFile, bool force=true);

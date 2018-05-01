@@ -17,6 +17,44 @@ PnlpGpu::PnlpGpu()
   PnlpGpuEvalObjGra_initialize();
   PnlpGpuEvalCon_initialize();
   PnlpGpuEvalConJac_initialize();
+
+  FILE *fp;
+
+  // Load bounds from file
+  fp = fopen("constant/bounds.txt", "r");
+  while (1) {
+    double lb, ub;
+
+    // Pitfall: need to use %lf here, %f will read all zero
+    if (fscanf(fp, "%lf %lf", &lb, &ub) != 2) break;
+
+    _lowerBounds.push_back(lb);
+    _upperBounds.push_back(ub);
+  }
+  fclose(fp);
+
+  // Load starting point values from file
+  fp = fopen("constant/initValues.txt", "r");
+  while (1) {
+    double value;
+
+    if (fscanf(fp, "%lf", &value) != 1) break;
+
+    _initValues.push_back(value);
+  }
+  fclose(fp);
+
+  // Load Jacobian sparsity structure from file
+  fp = fopen("constant/jacRowCol.txt", "r");
+  while (1) {
+    int row, col;
+
+    if (fscanf(fp, "%d %d", &row, &col) != 2) break;
+
+    _jacRows.push_back(row);
+    _jacCols.push_back(col);
+  }
+  fclose(fp);
 }
 
 PnlpGpu::~PnlpGpu()
@@ -44,7 +82,19 @@ bool PnlpGpu::get_nlp_info(Index &n, Index &m, Index &nnz_jac_g,
 bool PnlpGpu::get_bounds_info(Index n, Number *x_l, Number *x_u,
                               Index m, Number *g_l, Number *g_u)
 {
-//PH_BOUNDS_INFO
+  assert((n+m) == _lowerBounds.size());
+
+  // First n bounds are for x
+  for (int i = 0; i < n; i++) {
+    x_l[i] = _lowerBounds[i];
+    x_u[i] = _upperBounds[i];
+  }
+
+  // Last m bounds are for g
+  for (int i = 0; i < m; i++) {
+    g_l[i] = _lowerBounds[n+i];
+    g_u[i] = _upperBounds[n+i];
+  }
 
   return true;
 }
@@ -59,7 +109,10 @@ bool PnlpGpu::get_starting_point(Index n, bool init_x, Number *x,
   assert(init_z == false);
   assert(init_lambda == false);
 
-//PH_STARTING_POINT
+  assert(n == _initValues.size());
+
+  for (int i = 0; i < _initValues.size(); i++)
+    x[i] = _initValues[i];
 
   return true;
 }
@@ -125,7 +178,12 @@ bool PnlpGpu::eval_jac_g(Index n, const Number *x, bool new_x,
                          Index *iRow, Index *jCol, Number *values)
 {
   if (values == NULL) {
-//PH_JAC_STRUCTURE
+    assert(nele_jac == _jacRows.size());
+
+    for (int i = 0; i < _jacRows.size(); i++) {
+      iRow[i] = _jacRows[i];
+      jCol[i] = _jacCols[i];
+    }
   }
   else
     PnlpGpuEvalConJac_evaluate(x, values);

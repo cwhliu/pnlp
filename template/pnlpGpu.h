@@ -2,9 +2,12 @@
 #ifndef PNLP_GPU_H
 #define PNLP_GPU_H
 
+#include <vector>
+
 #include "IpTNLP.hpp"
 
 using namespace Ipopt;
+using std::vector;
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
@@ -46,6 +49,14 @@ public:
                       Number obj_factor, Index m, const Number *lambda,
                       bool new_lambda, Index nele_hess,
                       Index *iRow, Index *jCol, Number *values);
+private:
+  vector<double> _lowerBounds;
+  vector<double> _upperBounds;
+
+  vector<double> _initValues;
+
+  vector<int> _jacRows;
+  vector<int> _jacCols;
 };
 
 #endif // PNLP_GPU_H

@@ -93,11 +93,11 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
       funcInDeps.resize  (funcId+1);
       funcInAuxs.resize  (funcId+1);
       funcOutDeps.resize (funcId+1);
-
-      // Get function names
-      //funcNames[funcId] = _funcPrefix + docH1["Names"][f].GetString();
-      funcNames[funcId] = doc["Function"]["name"][funcId].GetString();
     }
+
+    // Get function names
+    //funcNames[funcId] = _funcPrefix + docH1["Names"][f].GetString();
+    funcNames[funcId] = doc["Function"]["name"][funcId].GetString();
 
     // Get function input dependencies, ie, which input variables are needed for
     // this function
@@ -159,22 +159,24 @@ bool PnlpFuncs::load(const rapidjson::Document &doc)
   _inMemSize = 0;
   _outMemSize = 0;
 
-  for (int f = 0; f < funcNames.size(); f++) {
-    for (int i = 0; i < funcInDeps[f].size(); i++) {
-      _funcNames.push_back(funcNames[f]);
+  for (int f = 0; f < funcInDeps.size(); f++) {
+    if (funcNames[f] != "") {
+      for (int i = 0; i < funcInDeps[f].size(); i++) {
+        _funcNames.push_back(funcNames[f]);
 
-      _funcInMemOffsets.push_back(_inMemSize);
-      _funcOutMemOffsets.push_back(_outMemSize);
+        _funcInMemOffsets.push_back(_inMemSize);
+        _funcOutMemOffsets.push_back(_outMemSize);
 
-      _funcInDeps.push_back(funcInDeps[f][i]);
-      _funcInAuxs.push_back(funcInAuxs[f][i]);
+        _funcInDeps.push_back(funcInDeps[f][i]);
+        _funcInAuxs.push_back(funcInAuxs[f][i]);
 
-      _inMemSize += funcInDeps[f][i].size();
-      _inMemSize += funcInAuxs[f][i].size();
+        _inMemSize += funcInDeps[f][i].size();
+        _inMemSize += funcInAuxs[f][i].size();
 
-      _funcOutDeps.push_back(funcOutDeps[f][i]);
+        _funcOutDeps.push_back(funcOutDeps[f][i]);
 
-      _outMemSize += funcOutDeps[f][i].size();
+        _outMemSize += funcOutDeps[f][i].size();
+      }
     }
   }
 
