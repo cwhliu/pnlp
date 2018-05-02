@@ -33,10 +33,10 @@ CXXFLAGS     += #-Wall -Wno-unused-but-set-variable -Wno-unused-result -Wno-unus
 CXXFLAGS     += -O3 #-std=c++11
 CXXFLAGS     += $(addprefix -I,$(INC_DIR))
 
-NVCCFLAGS    := -DPNLP_ON_$(RUN_ON)
+NVCCFLAGS    := -DPNLP_ON_$(RUN_ON) --fmad=false
 NVCCFLAGS    += $(addprefix -I,$(INC_DIR)) --gpu-architecture=sm_35 --disable-warnings
-#NVCCFLAGS += -Xptxas --disable-optimizer-constants
-#NVCCFLAGS += --ptxas-options=-v
+NVCCFLAGS    += -Xptxas --disable-optimizer-constants -Xptxas "--fmad false"
+#NVCCFLAGS    += --ptxas-options=-v
 
 # Linker flags for CUDA
 LDFLAGS      += -L${CUDA_HOME}/lib64

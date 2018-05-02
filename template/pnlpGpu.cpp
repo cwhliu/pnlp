@@ -127,6 +127,8 @@ void PnlpGpu::finalize_solution(SolverReturn status,
                                 const IpoptData *ip_data,
                                 IpoptCalculatedQuantities *ip_cq)
 {
+  return;
+
   printf("Solution\n");
   for (int i = 0; i < n; i++)
     printf("  x[%d] = %e\n", i, x[i]);

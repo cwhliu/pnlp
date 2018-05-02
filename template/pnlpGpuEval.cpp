@@ -20,9 +20,9 @@ double *PH_PnlpGpuEval_pOutMemCpu;
 double *PH_PnlpGpuEval_pInMemGpu;
 double *PH_PnlpGpuEval_pOutMemGpu;
 
-vector<int> PH_PnlpGpuEval_InRemapMem;
-vector<int> PH_PnlpGpuEval_InRemapIdx;
-vector<int> PH_PnlpGpuEval_InRemapAux;
+vector<int>    PH_PnlpGpuEval_InRemapMem;
+vector<int>    PH_PnlpGpuEval_InRemapIdx;
+vector<double> PH_PnlpGpuEval_InRemapAux;
 
 vector<int> PH_PnlpGpuEval_OutRemapIdx;
 vector<int> PH_PnlpGpuEval_OutRemapMem;
